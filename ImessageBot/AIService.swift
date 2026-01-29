@@ -24,6 +24,7 @@ class AIService {
         
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
+        LogManager.shared.log("正在请求 AI 响应...")
         let (data, _) = try await URLSession.shared.data(for: request)
         
         struct ChatCompletion: Codable {

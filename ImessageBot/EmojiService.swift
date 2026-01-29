@@ -13,6 +13,7 @@ class EmojiService {
         guard let url = components.url else { return nil }
         
         do {
+            LogManager.shared.log("搜索表情包关键词: \(keyword)")
             let (data, _) = try await URLSession.shared.data(from: url)
             struct EmojiResponse: Codable {
                 struct Data: Codable {
@@ -34,6 +35,7 @@ class EmojiService {
     
     static func downloadEmoji(url: URL) async -> URL? {
         do {
+            LogManager.shared.log("正在从 URL 下载表情包...")
             let (data, _) = try await URLSession.shared.data(from: url)
             let tempDir = FileManager.default.temporaryDirectory
             let fileURL = tempDir.appendingPathComponent(UUID().uuidString).appendingPathExtension(url.pathExtension.isEmpty ? "jpg" : url.pathExtension)

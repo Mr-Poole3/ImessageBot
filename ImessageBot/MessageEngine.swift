@@ -19,13 +19,14 @@ class MessageEngine: ObservableObject {
         guard !isRunning else { return }
         
         if sqlite3_open(dbPath, &db) != SQLITE_OK {
-            print("Failed to open database. Ensure Full Disk Access is granted.")
+            LogManager.shared.log("数据库打开失败，请确保已授予“完全磁盘访问权限”", level: .error)
             return
         }
         
         // Get initial last row ID
         lastProcessedRowID = getLastRowID()
         isRunning = true
+        LogManager.shared.log("iMessage 机器人服务已启动，唤醒词：'\(config.triggerPrefix)'", level: .success)
         
         timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             self?.poll()
@@ -38,6 +39,7 @@ class MessageEngine: ObservableObject {
         sqlite3_close(db)
         db = nil
         isRunning = false
+        LogManager.shared.log("服务已停止", level: .warning)
     }
     
     private func getLastRowID() -> Int64 {
@@ -79,6 +81,7 @@ class MessageEngine: ObservableObject {
                     lastProcessedRowID = rowID
                     
                     if !text.isEmpty && text.hasPrefix(config.triggerPrefix) {
+                        LogManager.shared.log("检测到指令: \(text) (来自: \(sender))")
                         handleTrigger(text: text, sender: sender)
                     }
                 }
@@ -93,16 +96,21 @@ class MessageEngine: ObservableObject {
                 let cleanInput = text.replacingOccurrences(of: config.triggerPrefix, with: "").trimmingCharacters(in: .whitespaces)
                 let (reply, emojiKeyword) = try await AIService.getResponse(input: cleanInput, config: config)
                 
+                LogManager.shared.log("AI 回复: \(reply)")
+                
                 // Send text segments
                 let segments = splitText(reply)
+                LogManager.shared.log("回复将分 \(segments.count) 段发送")
+                
                 for segment in segments {
                     // 发送前检查是否有新动态中断 (同步 Python 逻辑)
                     if let latestID = await getLatestIDAsync(), latestID != lastProcessedRowID {
-                        print("检测到新动态, 中断当前回复")
+                        LogManager.shared.log("检测到新消息，中断当前回复流程", level: .warning)
                         return
                     }
 
                     sendIMessage(to: sender, text: segment)
+                    LogManager.shared.log("已发送: \(segment)")
                     
                     // 发送后立即更新 ID，防止循环触发 (同步 Python 逻辑)
                     try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s wait for DB write
@@ -115,8 +123,10 @@ class MessageEngine: ObservableObject {
                 
                 // Handle Emoji
                 if !emojiKeyword.isEmpty {
+                    LogManager.shared.log("正在准备表情包: \(emojiKeyword)...")
                     if let url = await EmojiService.getEmojiURL(keyword: emojiKeyword, apiKey: config.emojiApiKey),
                        let fileURL = await EmojiService.downloadEmoji(url: url) {
+                        LogManager.shared.log("表情包下载成功，正在发送...", level: .success)
                         sendIMessageAttachment(to: sender, fileURL: fileURL)
                         
                         // 发送后更新 ID
@@ -127,10 +137,12 @@ class MessageEngine: ObservableObject {
                         
                         try? await Task.sleep(nanoseconds: 1_000_000_000)
                         try? FileManager.default.removeItem(at: fileURL)
+                    } else {
+                        LogManager.shared.log("未能获取或下载表情包", level: .warning)
                     }
                 }
             } catch {
-                print("Error handling trigger: \(error)")
+                LogManager.shared.log("处理指令时出错: \(error.localizedDescription)", level: .error)
             }
         }
     }
@@ -140,14 +152,32 @@ class MessageEngine: ObservableObject {
     }
     
     private func splitText(_ text: String) -> [String] {
-        let pattern = "([^。！？…\\u{1F600}-\\u{1F64F}\\u{1F300}-\\u{1F5FF}\\u{1F680}-\\u{1F6FF}\\u{1F1E0}-\\u{1F1FF}]+[。！？…\\u{1F600}-\\u{1F64F}\\u{1F300}-\\u{1F5FF}\\u{1F680}-\\u{1F6FF}\\u{1F1E0}-\\u{1F1FF}]+[））」』”\"]*|[^。！？…\\u{1F600}-\\u{1F64F}\\u{1F300}-\\u{1F5FF}\\u{1F680}-\\u{1F6FF}\\u{1F1E0}-\\u{1F1FF}]+$)"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [text] }
-        let nsRange = NSRange(text.startIndex..<text.endIndex, in: text)
-        let matches = regex.matches(in: text, options: [], range: nsRange)
-        return matches.map { match in
-            let range = Range(match.range, in: text)!
-            return String(text[range]).trimmingCharacters(in: .whitespaces)
-        }.filter { !$0.isEmpty }
+        // 定义结尾标点符号，包括中英文标点、换行、以及常见的口语结束词
+        // 我们不把逗号放进去，因为逗号通常不代表一句话发完了
+        let delimiters = "。！？…!?.\\n~～"
+        
+        // 正则逻辑：
+        // 1. ([^\(delimiters)]+[\(delimiters)]+[\"”』」）)]*) : 匹配非标点+标点+可能的闭合符号
+        // 2. | ([^\(delimiters)]+$) : 或者匹配最后一段没有标点的内容
+        // 特殊处理：Emoji 作为一个整体，不应该在中间被切断
+        let pattern = "([^\(delimiters)]+[\(delimiters)]+[\"”』」）)]*|[^\(delimiters)]+$)"
+        
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return [text]
+        }
+        
+        let nsString = text as NSString
+        let results = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsString.length))
+        
+        var segments = results.map { nsString.substring(with: $0.range).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        
+        // 如果切分失败（比如全是标点或者正则没匹配到），至少返回原段落
+        if segments.isEmpty && !text.isEmpty {
+            segments = [text.trimmingCharacters(in: .whitespacesAndNewlines)]
+        }
+        
+        return segments
     }
     
     private func sendIMessage(to handle: String, text: String) {
