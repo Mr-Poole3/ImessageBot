@@ -147,25 +147,50 @@ class MessageEngine: ObservableObject {
                 
                 // Handle Emoji
                 if !emojiKeyword.isEmpty {
-                    // 随机决定是否发送表情包 (例如 50% 概率)
+                    // 随机决定是否发送表情包 (例如 30% 概率)
                     if Double.random(in: 0...1) < 0.3 {
                         LogManager.shared.log("正在准备表情包: \(emojiKeyword)...")
-                        if let url = await EmojiService.getEmojiURL(keyword: emojiKeyword, apiKey: config.emojiApiKey),
-                           let fileURL = await EmojiService.downloadEmoji(url: url) {
-                            LogManager.shared.log("表情包下载成功，正在发送...", level: .success)
-                            sendIMessageAttachment(to: sender, fileURL: fileURL)
+                        
+                        // 1. 获取 URL 前检查打断
+                        if let latestID = await getLatestIDAsync(), latestID != lastProcessedRowID {
+                            LogManager.shared.log("检测到新消息，取消发送表情包", level: .warning)
+                            return
+                        }
+                        
+                        if let url = await EmojiService.getEmojiURL(keyword: emojiKeyword, apiKey: config.emojiApiKey) {
                             
-                            // 发送后更新 ID
-                            try? await Task.sleep(nanoseconds: 1_000_000_000)
-                            if let sentID = await getLatestIDAsync() {
-                                lastProcessedRowID = sentID
+                            // 2. 下载前检查打断
+                            if let latestID = await getLatestIDAsync(), latestID != lastProcessedRowID {
+                                LogManager.shared.log("检测到新消息，取消下载表情包", level: .warning)
+                                return
                             }
                             
-                            // 延长等待时间，确保 iMessage 已读取并处理文件
-                            try? await Task.sleep(nanoseconds: 5_000_000_000)
-                            try? FileManager.default.removeItem(at: fileURL)
+                            if let fileURL = await EmojiService.downloadEmoji(url: url) {
+                                
+                                // 3. 发送前检查打断
+                                if let latestID = await getLatestIDAsync(), latestID != lastProcessedRowID {
+                                    LogManager.shared.log("检测到新消息，取消发送表情包文件", level: .warning)
+                                    try? FileManager.default.removeItem(at: fileURL)
+                                    return
+                                }
+                                
+                                LogManager.shared.log("表情包下载成功，正在发送...", level: .success)
+                                sendIMessageAttachment(to: sender, fileURL: fileURL)
+                                
+                                // 发送后更新 ID
+                                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                                if let sentID = await getLatestIDAsync() {
+                                    lastProcessedRowID = sentID
+                                }
+                                
+                                // 延长等待时间，确保 iMessage 已读取并处理文件
+                                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                                try? FileManager.default.removeItem(at: fileURL)
+                            } else {
+                                LogManager.shared.log("未能下载表情包", level: .warning)
+                            }
                         } else {
-                            LogManager.shared.log("未能获取或下载表情包", level: .warning)
+                            LogManager.shared.log("未能获取表情包 URL", level: .warning)
                         }
                     } else {
                         LogManager.shared.log("随机决定本次不发送表情包 (\(emojiKeyword))")

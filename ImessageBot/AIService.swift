@@ -13,10 +13,12 @@ class AIService {
         request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        let fullSystemPrompt = config.userSystemPrompt + config.formatInstruction
+        
         let body: [String: Any] = [
             "model": "doubao-seed-1-6-flash-250828",
             "messages": [
-                ["role": "system", "content": config.systemPrompt],
+                ["role": "system", "content": fullSystemPrompt],
                 ["role": "user", "content": input]
             ],
             "response_format": ["type": "json_object"]

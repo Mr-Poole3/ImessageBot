@@ -10,13 +10,16 @@ struct ContentView: View {
         HStack(spacing: 0) {
             // Sidebar
             VStack(spacing: 20) {
-                VStack(spacing: 8) {
-                    Image(systemName: "bubble.left.and.bubble.right.fill")
-                        .font(.system(size: 40))
-                        .foregroundStyle(LinearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                VStack(spacing: 12) {
+                    Image("logo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 60, height: 60)
+                        .cornerRadius(12)
+                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                     
                     Text("iMessage Bot")
-                        .font(.headline)
+                        .font(.system(size: 16, weight: .bold))
                 }
                 .padding(.top, 40)
                 
@@ -132,6 +135,8 @@ struct StatusBadge: View {
 struct SettingsTabView: View {
     @ObservedObject var configManager: ConfigManager
     @State private var isSaving = false
+    @State private var showSuccess = false
+    @State private var showError = false
     
     var body: some View {
         ScrollView {
@@ -141,25 +146,49 @@ struct SettingsTabView: View {
                         .font(.system(size: 28, weight: .bold))
                     Spacer()
                     
-                    Button(action: saveSettings) {
-                        HStack(spacing: 6) {
-                            if isSaving {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
+                    HStack(spacing: 12) {
+                        if showSuccess {
+                            HStack(spacing: 4) {
                                 Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("保存成功")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.green)
                             }
-                            Text(isSaving ? "正在保存..." : "保存设置")
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
                         }
-                        .font(.system(size: 13, weight: .semibold))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
+                        
+                        if showError {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .foregroundColor(.red)
+                                Text("保存失败")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.red)
+                            }
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                        }
+                        
+                        Button(action: saveSettings) {
+                            HStack(spacing: 6) {
+                                if isSaving {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "checkmark.circle.fill")
+                                }
+                                Text(isSaving ? "正在保存..." : "保存设置")
+                            }
+                            .font(.system(size: 13, weight: .semibold))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isSaving)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(isSaving)
                 }
                 .padding(.bottom, 8)
                 
@@ -177,7 +206,7 @@ struct SettingsTabView: View {
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.secondary)
                             
-                            TextEditor(text: $configManager.config.systemPrompt)
+                            TextEditor(text: $configManager.config.userSystemPrompt)
                                 .font(.system(size: 13))
                                 .padding(8)
                                 .frame(height: 250)
@@ -210,11 +239,28 @@ struct SettingsTabView: View {
     
     func saveSettings() {
         isSaving = true
-        configManager.saveConfig()
+        let success = configManager.saveConfig()
         
-        // 模拟保存动画
+        // 模拟保存动画并显示反馈提示
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             isSaving = false
+            withAnimation {
+                if success {
+                    showSuccess = true
+                    showError = false
+                } else {
+                    showSuccess = false
+                    showError = true
+                }
+            }
+            
+            // 3秒后隐藏提示
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                withAnimation {
+                    showSuccess = false
+                    showError = false
+                }
+            }
         }
     }
 }
