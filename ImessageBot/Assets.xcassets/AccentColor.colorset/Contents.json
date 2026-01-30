@@ -3,7 +3,7 @@
     {
       "color" : {
         "platform" : "osx",
-        "reference" : "controlBackgroundColor"
+        "reference" : "systemBlueColor"
       },
       "idiom" : "mac"
     }
@@ -11,8 +11,5 @@
   "info" : {
     "author" : "xcode",
     "version" : 1
-  },
-  "properties" : {
-    "localizable" : true
   }
 }

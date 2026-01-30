@@ -15,7 +15,7 @@ struct ImessageBotApp: App {
     init() {
         let cm = ConfigManager()
         _configManager = StateObject(wrappedValue: cm)
-        _engine = StateObject(wrappedValue: MessageEngine(config: cm.config))
+        _engine = StateObject(wrappedValue: MessageEngine(configManager: cm))
     }
     
     @State private var selectedTab = 0

@@ -1,20 +1,46 @@
 import Foundation
 import Combine
 
+struct PersonaCard: Codable, Identifiable, Equatable {
+    var id: UUID
+    var cardName: String
+    var personaName: String
+    var description: String
+    
+    init(id: UUID = UUID(), cardName: String, personaName: String, description: String) {
+        self.id = id
+        self.cardName = cardName
+        self.personaName = personaName
+        self.description = description
+    }
+    
+    var systemPrompt: String {
+        return """
+        姓名：\(personaName)
+        \(description)
+        """
+    }
+}
+
 struct AppConfig: Codable {
     var apiKey: String = "db6940e3-ff32-4c42-96fc-19a44431fd84"
     var triggerPrefix: String = "."
-    var userSystemPrompt: String = """
-    你是一名在校女大学生青竹，就读于四川大学（川大）。
-    性格特点：傲娇，性感，高冷，暗恋对话人但是害羞不敢暴露。
-    兴趣爱好：喜欢玩儿三角洲行动、篮球、旅游。
-    表达风格：
-    1. 模仿真人聊天：请站在第一人称角度对话，像一个真实的人在发 iMessage 消息。
-    2. 严禁输出动作描述：绝对不要在回复中包含（）或 () 括号包裹的动作描写，如：（指尖蜷缩）、（抿嘴笑）等。
-    3. 语言风格：语气俏皮、傲娇但充满活力，回复要简洁幽默，不要死板，保持短对话。
-    4. 情感流露：通过文字内容和语气来表达你的情感，而不是描述画面感动作。
-    5. 回复文本的结尾有时候需要一个 emoji表情，概率为 50%。
-    """
+    var personaCards: [PersonaCard] = [
+        PersonaCard(
+            cardName: "默认角色",
+            personaName: "青竹",
+            description: "你是一名在校女大学生青竹，就读于四川大学（川大）。性格傲娇，性感，高冷。"
+        )
+    ]
+    var selectedPersonaId: UUID?
+    
+    var userSystemPrompt: String {
+        if let selectedId = selectedPersonaId,
+           let card = personaCards.first(where: { $0.id == selectedId }) {
+            return card.systemPrompt
+        }
+        return personaCards.first?.systemPrompt ?? ""
+    }
     
     // 程序写死的输出格式提示词，不建议用户修改
     var formatInstruction: String = """

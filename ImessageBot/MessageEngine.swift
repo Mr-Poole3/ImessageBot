@@ -12,10 +12,14 @@ class MessageEngine: ObservableObject {
     @Published var showAlert = false
     @Published var alertMessage = ""
     
-    var config: AppConfig
+    private var configManager: ConfigManager
     
-    init(config: AppConfig) {
-        self.config = config
+    init(configManager: ConfigManager) {
+        self.configManager = configManager
+    }
+    
+    var config: AppConfig {
+        configManager.config
     }
     
     func toggle(with config: AppConfig) {
@@ -24,7 +28,6 @@ class MessageEngine: ObservableObject {
             alertMessage = "机器人服务已停止"
             showAlert = true
         } else {
-            self.config = config
             start()
             
             if isRunning {
