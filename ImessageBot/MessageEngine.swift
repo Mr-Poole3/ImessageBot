@@ -19,11 +19,14 @@ class MessageEngine: ObservableObject {
         guard !isRunning else { return }
         
         if sqlite3_open(dbPath, &db) != SQLITE_OK {
-            LogManager.shared.log("数据库打开失败，请确保已授予“完全磁盘访问权限”", level: .error)
+            let errorMsg = "数据库打开失败，请确保已授予“完全磁盘访问权限”"
+            LogManager.shared.log(errorMsg, level: .error)
+            // 保持 isRunning 为 false，这样 UI 上的按钮状态就不会变
+            isRunning = false
             return
         }
         
-        // Get initial last row ID
+        // 成功打开数据库后，再设置运行状态
         lastProcessedRowID = getLastRowID()
         isRunning = true
         LogManager.shared.log("iMessage 机器人服务已启动，唤醒词：'\(config.triggerPrefix)'", level: .success)
@@ -152,15 +155,9 @@ class MessageEngine: ObservableObject {
     }
     
     private func splitText(_ text: String) -> [String] {
-        // 定义结尾标点符号，包括中英文标点、换行、以及常见的口语结束词
-        // 我们不把逗号放进去，因为逗号通常不代表一句话发完了
-        let delimiters = "。！？…!?.\\n~～"
-        
-        // 正则逻辑：
-        // 1. ([^\(delimiters)]+[\(delimiters)]+[\"”』」）)]*) : 匹配非标点+标点+可能的闭合符号
-        // 2. | ([^\(delimiters)]+$) : 或者匹配最后一段没有标点的内容
-        // 特殊处理：Emoji 作为一个整体，不应该在中间被切断
-        let pattern = "([^\(delimiters)]+[\(delimiters)]+[\"”』」）)]*|[^\(delimiters)]+$)"
+        // 修正后的正则：匹配非分隔符序列，后跟可选的分隔符序列
+        // 分隔符包括：中英文句号、感叹号、问号、省略号、换行、波浪号
+        let pattern = "([^。！？…!?.\\n~～]+[。！？…!?.\\n~～]*)"
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
             return [text]
@@ -169,15 +166,8 @@ class MessageEngine: ObservableObject {
         let nsString = text as NSString
         let results = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsString.length))
         
-        var segments = results.map { nsString.substring(with: $0.range).trimmingCharacters(in: .whitespacesAndNewlines) }
+        return results.map { nsString.substring(with: $0.range).trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-        
-        // 如果切分失败（比如全是标点或者正则没匹配到），至少返回原段落
-        if segments.isEmpty && !text.isEmpty {
-            segments = [text.trimmingCharacters(in: .whitespacesAndNewlines)]
-        }
-        
-        return segments
     }
     
     private func sendIMessage(to handle: String, text: String) {

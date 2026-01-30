@@ -36,7 +36,18 @@ class EmojiService {
     static func downloadEmoji(url: URL) async -> URL? {
         do {
             LogManager.shared.log("正在从 URL 下载表情包...")
-            let (data, _) = try await URLSession.shared.data(from: url)
+            
+            // 将 http 转换为 https 以规避 ATS 限制
+            var downloadURL = url
+            if url.scheme == "http" {
+                var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                components?.scheme = "https"
+                if let httpsURL = components?.url {
+                    downloadURL = httpsURL
+                }
+            }
+            
+            let (data, _) = try await URLSession.shared.data(from: downloadURL)
             let tempDir = FileManager.default.temporaryDirectory
             let fileURL = tempDir.appendingPathComponent(UUID().uuidString).appendingPathExtension(url.pathExtension.isEmpty ? "jpg" : url.pathExtension)
             try data.write(to: fileURL)

@@ -124,8 +124,14 @@ struct ContentView: View {
         } else {
             engine.config = configManager.config
             engine.start()
-            selectedTab = 1 // 启动后自动跳转到日志页
-            alertMessage = "机器人服务启动成功！"
+            
+            // 根据启动后的状态给出反馈
+            if engine.isRunning {
+                selectedTab = 1 // 启动成功才跳转到日志页
+                alertMessage = "机器人服务启动成功！"
+            } else {
+                alertMessage = "启动失败：请检查日志并确保已授予“完全磁盘访问权限”。"
+            }
             showStatusAlert = true
         }
     }
