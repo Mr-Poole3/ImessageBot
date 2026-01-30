@@ -66,6 +66,11 @@ class ConfigManager: ObservableObject {
     init() {
         self.config = AppConfig()
         loadConfig()
+        
+        // 确保有一个默认选中的角色
+        if config.selectedPersonaId == nil {
+            config.selectedPersonaId = config.personaCards.first?.id
+        }
     }
     
     func loadConfig() {

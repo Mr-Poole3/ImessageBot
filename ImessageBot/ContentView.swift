@@ -402,11 +402,11 @@ struct PersonaCardView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(isSelected ? Color.blue.opacity(0.05) : Color.primary.opacity(0.03))
+        .background(isSelected ? Color.blue.opacity(0.15) : Color.primary.opacity(0.03)) // 增加选中时的背景深度
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(isSelected ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
+                .stroke(isSelected ? Color.blue.opacity(0.5) : Color.clear, lineWidth: 2) // 增加边框粗细和不透明度
         )
         .contentShape(Rectangle())
         .onTapGesture(perform: onSelect)

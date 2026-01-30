@@ -59,6 +59,7 @@ class MessageEngine: ObservableObject {
             let errorMsg = "数据库打开失败，请确保已授予“完全磁盘访问权限”"
             LogManager.shared.log(errorMsg, level: .error)
             alertMessage = "服务启动失败：\(errorMsg)"
+            showAlert = true
             isRunning = false
             return
         }
