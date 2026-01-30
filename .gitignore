@@ -1,0 +1,36 @@
+# Xcode
+#
+build/
+DerivedData/
+*.moved-aside
+*.xcuserstate
+*.xcscmblueprint
+
+# 个人设置 (重点忽略)
+xcuserdata/
+project.xcworkspace/xcuserdata/
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# 编译产物
+*.app
+*.dmg
+*.ipa
+*.bundle
+
+# macOS 系统文件
+.DS_Store
+
+# 打包脚本产生的临时目录
+ImessageBot_Pack/
+build/
+
+# 证书与配置文件 (如果有)
+*.cert
+*.mobileprovision
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*$py.class
