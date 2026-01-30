@@ -45,8 +45,12 @@ class ConfigManager: ObservableObject {
     }
     
     func saveConfig() {
-        if let data = try? JSONEncoder().encode(config) {
-            try? data.write(to: fileURL)
+        do {
+            let data = try JSONEncoder().encode(config)
+            try data.write(to: fileURL)
+            LogManager.shared.log("配置已成功保存到本地", level: .success)
+        } catch {
+            LogManager.shared.log("保存配置失败: \(error.localizedDescription)", level: .error)
         }
     }
 }

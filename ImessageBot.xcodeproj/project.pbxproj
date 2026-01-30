@@ -86,10 +86,11 @@
 				};
 			};
 			buildConfigurationList = 04A662F82F2BBEA200BC41F2 /* Build configuration list for PBXProject "ImessageBot" */;
-			developmentRegion = en;
+			developmentRegion = zh;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				zh,
 				Base,
 			);
 			mainGroup = 04A662F42F2BBEA200BC41F2;

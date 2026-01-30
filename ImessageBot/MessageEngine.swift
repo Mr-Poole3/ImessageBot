@@ -9,10 +9,31 @@ class MessageEngine: ObservableObject {
     private var timer: Timer?
     
     @Published var isRunning = false
+    @Published var showAlert = false
+    @Published var alertMessage = ""
+    
     var config: AppConfig
     
     init(config: AppConfig) {
         self.config = config
+    }
+    
+    func toggle(with config: AppConfig) {
+        if isRunning {
+            stop()
+            alertMessage = "机器人服务已停止"
+            showAlert = true
+        } else {
+            self.config = config
+            start()
+            
+            if isRunning {
+                alertMessage = "机器人服务启动成功！"
+            } else {
+                alertMessage = "服务启动失败：请确保已在“系统设置 -> 隐私与安全性 -> 完全磁盘访问权限”中添加并勾选了本应用。"
+            }
+            showAlert = true
+        }
     }
     
     func start() {
@@ -126,22 +147,28 @@ class MessageEngine: ObservableObject {
                 
                 // Handle Emoji
                 if !emojiKeyword.isEmpty {
-                    LogManager.shared.log("正在准备表情包: \(emojiKeyword)...")
-                    if let url = await EmojiService.getEmojiURL(keyword: emojiKeyword, apiKey: config.emojiApiKey),
-                       let fileURL = await EmojiService.downloadEmoji(url: url) {
-                        LogManager.shared.log("表情包下载成功，正在发送...", level: .success)
-                        sendIMessageAttachment(to: sender, fileURL: fileURL)
-                        
-                        // 发送后更新 ID
-                        try? await Task.sleep(nanoseconds: 1_000_000_000)
-                        if let sentID = await getLatestIDAsync() {
-                            lastProcessedRowID = sentID
+                    // 随机决定是否发送表情包 (例如 50% 概率)
+                    if Double.random(in: 0...1) < 0.3 {
+                        LogManager.shared.log("正在准备表情包: \(emojiKeyword)...")
+                        if let url = await EmojiService.getEmojiURL(keyword: emojiKeyword, apiKey: config.emojiApiKey),
+                           let fileURL = await EmojiService.downloadEmoji(url: url) {
+                            LogManager.shared.log("表情包下载成功，正在发送...", level: .success)
+                            sendIMessageAttachment(to: sender, fileURL: fileURL)
+                            
+                            // 发送后更新 ID
+                            try? await Task.sleep(nanoseconds: 1_000_000_000)
+                            if let sentID = await getLatestIDAsync() {
+                                lastProcessedRowID = sentID
+                            }
+                            
+                            // 延长等待时间，确保 iMessage 已读取并处理文件
+                            try? await Task.sleep(nanoseconds: 5_000_000_000)
+                            try? FileManager.default.removeItem(at: fileURL)
+                        } else {
+                            LogManager.shared.log("未能获取或下载表情包", level: .warning)
                         }
-                        
-                        try? await Task.sleep(nanoseconds: 1_000_000_000)
-                        try? FileManager.default.removeItem(at: fileURL)
                     } else {
-                        LogManager.shared.log("未能获取或下载表情包", level: .warning)
+                        LogManager.shared.log("随机决定本次不发送表情包 (\(emojiKeyword))")
                     }
                 }
             } catch {

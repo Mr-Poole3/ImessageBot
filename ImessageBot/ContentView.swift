@@ -1,139 +1,303 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject var configManager = ConfigManager()
-    @StateObject var engine: MessageEngine
+    @ObservedObject var configManager: ConfigManager
+    @ObservedObject var engine: MessageEngine
     @ObservedObject var logManager = LogManager.shared
-    @State private var selectedTab = 0
-    @State private var showStatusAlert = false
-    @State private var alertMessage = ""
-    
-    init() {
-        let cm = ConfigManager()
-        _configManager = StateObject(wrappedValue: cm)
-        _engine = StateObject(wrappedValue: MessageEngine(config: cm.config))
-    }
+    @Binding var selectedTab: Int
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                VStack(alignment: .leading) {
+        HStack(spacing: 0) {
+            // Sidebar
+            VStack(spacing: 20) {
+                VStack(spacing: 8) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(LinearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    
                     Text("iMessage Bot")
-                        .font(.system(size: 24, weight: .bold))
-                    Text(engine.isRunning ? "正在运行中..." : "已停止")
-                        .font(.subheadline)
-                        .foregroundColor(engine.isRunning ? .green : .secondary)
+                        .font(.headline)
                 }
+                .padding(.top, 40)
+                
+                VStack(spacing: 4) {
+                    SidebarButton(title: "设置", icon: "gearshape.fill", isSelected: selectedTab == 0) {
+                        selectedTab = 0
+                    }
+                    SidebarButton(title: "日志", icon: "doc.text.fill", isSelected: selectedTab == 1) {
+                        selectedTab = 1
+                    }
+                }
+                .padding(.horizontal, 12)
+                
                 Spacer()
                 
-                Button(action: toggleEngine) {
-                    Text(engine.isRunning ? "停止服务" : "启动服务")
-                        .frame(width: 100)
+                VStack(spacing: 12) {
+                    StatusBadge(isRunning: engine.isRunning)
+                    
+                    Button(action: toggleEngine) {
+                        Text(engine.isRunning ? "停止服务" : "启动服务")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(engine.isRunning ? Color.red : Color.blue)
+                            .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(engine.isRunning ? .red : .accentColor)
+                .padding(16)
+                .background(Color.black.opacity(0.05))
+                .cornerRadius(12)
+                .padding(12)
             }
-            .padding()
-            .background(Color(NSColor.windowBackgroundColor))
+            .frame(width: 200)
+            .background(VisualEffectView(material: .sidebar, blendingMode: .behindWindow))
             
             Divider()
             
-            TabView(selection: $selectedTab) {
-                // Settings Tab
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        SectionView(title: "基础配置") {
-                            VStack(alignment: .leading) {
-                                Text("API Key")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                SecureField("输入 Ark API Key", text: $configManager.config.apiKey)
-                                    .textFieldStyle(.roundedBorder)
-                                
-                                Text("唤醒词")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                TextField("例如 .", text: $configManager.config.triggerPrefix)
-                                    .textFieldStyle(.roundedBorder)
-                            }
-                        }
-                        
-                        SectionView(title: "Persona 设置") {
-                            VStack(alignment: .leading) {
-                                Text("System Prompt")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                TextEditor(text: $configManager.config.systemPrompt)
-                                    .frame(height: 200)
-                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.2)))
-                            }
-                        }
-                        
-                        SectionView(title: "表情包 API") {
-                            VStack(alignment: .leading) {
-                                Text("Yaohud API Key")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                TextField("输入表情包 API Key", text: $configManager.config.emojiApiKey)
-                                    .textFieldStyle(.roundedBorder)
-                            }
-                        }
-                        
-                        VStack(alignment: .center) {
-                            Text("请确保已在系统中授予“完全磁盘访问权限”")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .padding()
-                }
-                .tabItem {
-                    Label("配置", systemImage: "gearshape")
-                }
-                .tag(0)
+            // Main Content
+            ZStack {
+                Color(NSColor.windowBackgroundColor)
                 
-                // Logs Tab
-                LogView(logs: logManager.logs)
-                    .tabItem {
-                        Label("运行日志", systemImage: "doc.text")
-                    }
-                    .tag(1)
+                if selectedTab == 0 {
+                    SettingsTabView(configManager: configManager)
+                } else {
+                    LogView(logs: logManager.logs)
+                }
             }
         }
-        .frame(minWidth: 550, minHeight: 650)
-        .onChange(of: configManager.config.apiKey) { configManager.saveConfig() }
-        .onChange(of: configManager.config.triggerPrefix) { configManager.saveConfig() }
-        .onChange(of: configManager.config.systemPrompt) { configManager.saveConfig() }
-        .onChange(of: configManager.config.emojiApiKey) { configManager.saveConfig() }
+        .frame(minWidth: 800, minHeight: 600)
         .onAppear {
             LogManager.shared.log("欢迎使用 iMessage Bot！程序已准备就绪。")
             LogManager.shared.log("提示：请确保已在“系统设置 -> 隐私与安全性 -> 完全磁盘访问权限”中勾选本程序。", level: .warning)
         }
-        .alert(alertMessage, isPresented: $showStatusAlert) {
+        .alert(engine.alertMessage, isPresented: $engine.showAlert) {
             Button("好的", role: .cancel) { }
         }
     }
     
     func toggleEngine() {
+        engine.toggle(with: configManager.config)
         if engine.isRunning {
-            engine.stop()
-            alertMessage = "机器人服务已停止"
-            showStatusAlert = true
-        } else {
-            engine.config = configManager.config
-            engine.start()
-            
-            // 根据启动后的状态给出反馈
-            if engine.isRunning {
-                selectedTab = 1 // 启动成功才跳转到日志页
-                alertMessage = "机器人服务启动成功！"
-            } else {
-                alertMessage = "启动失败：请检查日志并确保已授予“完全磁盘访问权限”。"
-            }
-            showStatusAlert = true
+            selectedTab = 1
         }
+    }
+}
+
+// MARK: - Components
+
+struct SidebarButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(width: 20)
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle()) // 关键：将整个区域设为可点击
+            .background(isSelected ? Color.blue.opacity(0.1) : Color.clear)
+            .foregroundColor(isSelected ? .blue : .primary)
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct StatusBadge: View {
+    let isRunning: Bool
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(isRunning ? Color.green : Color.gray)
+                .frame(width: 8, height: 8)
+            Text(isRunning ? "正在运行" : "服务已停止")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(isRunning ? .green : .secondary)
+        }
+    }
+}
+
+struct SettingsTabView: View {
+    @ObservedObject var configManager: ConfigManager
+    @State private var isSaving = false
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                HStack {
+                    Text("设置")
+                        .font(.system(size: 28, weight: .bold))
+                    Spacer()
+                    
+                    Button(action: saveSettings) {
+                        HStack(spacing: 6) {
+                            if isSaving {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "checkmark.circle.fill")
+                            }
+                            Text(isSaving ? "正在保存..." : "保存设置")
+                        }
+                        .font(.system(size: 13, weight: .semibold))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSaving)
+                }
+                .padding(.bottom, 8)
+                
+                Group {
+                    ModernSection(title: "基础服务配置", icon: "key.fill") {
+                        VStack(alignment: .leading, spacing: 16) {
+                            ModernTextField(label: "Ark API Key", text: $configManager.config.apiKey, isSecure: true, placeholder: "输入您的 API 密钥")
+                            ModernTextField(label: "消息唤醒词", text: $configManager.config.triggerPrefix, placeholder: "例如 . 或 @bot")
+                        }
+                    }
+                    
+                    ModernSection(title: "角色人格设定", icon: "person.text.rectangle.fill") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("System Prompt")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.secondary)
+                            
+                            TextEditor(text: $configManager.config.systemPrompt)
+                                .font(.system(size: 13))
+                                .padding(8)
+                                .frame(height: 250)
+                                .background(Color(NSColor.controlBackgroundColor))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                                )
+                        }
+                    }
+                    
+                    ModernSection(title: "扩展功能", icon: "face.smiling.fill") {
+                        ModernTextField(label: "表情包 API Key (Yaohud)", text: $configManager.config.emojiApiKey, placeholder: "输入表情包 API 密钥")
+                    }
+                }
+                
+                HStack {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(.secondary)
+                    Text("提示：保存后配置将立即生效，无需重启服务。")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 8)
+            }
+            .padding(32)
+        }
+    }
+    
+    func saveSettings() {
+        isSaving = true
+        configManager.saveConfig()
+        
+        // 模拟保存动画
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            isSaving = false
+        }
+    }
+}
+
+struct ModernSection<Content: View>: View {
+    let title: String
+    let icon: String
+    let content: Content
+    
+    init(title: String, icon: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.icon = icon
+        self.content = content()
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .foregroundColor(.blue)
+                Text(title)
+                    .font(.system(size: 15, weight: .bold))
+            }
+            
+            content
+        }
+        .padding(20)
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+        )
+    }
+}
+
+struct ModernTextField: View {
+    let label: String
+    @Binding var text: String
+    var isSecure: Bool = false
+    var placeholder: String = ""
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.secondary)
+            
+            Group {
+                if isSecure {
+                    SecureField(placeholder, text: $text)
+                } else {
+                    TextField(placeholder, text: $text)
+                }
+            }
+            .textFieldStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(6)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+            )
+        }
+    }
+}
+
+struct VisualEffectView: NSViewRepresentable {
+    let material: NSVisualEffectView.Material
+    let blendingMode: NSVisualEffectView.BlendingMode
+    
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = .active
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
     }
 }
 
@@ -207,6 +371,7 @@ struct SectionView<Content: View>: View {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
+        let cm = ConfigManager()
+        ContentView(configManager: cm, engine: MessageEngine(config: cm.config), selectedTab: .constant(0))
     }
 }
