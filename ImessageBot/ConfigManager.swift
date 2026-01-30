@@ -23,7 +23,7 @@ struct PersonaCard: Codable, Identifiable, Equatable {
 }
 
 struct AppConfig: Codable {
-    var apiKey: String = "db6940e3-ff32-4c42-96fc-19a44431fd84"
+    var apiKey: String = ""
     var triggerPrefix: String = "."
     var personaCards: [PersonaCard] = [
         PersonaCard(
@@ -51,7 +51,7 @@ struct AppConfig: Codable {
     - "emoji_keyword": 根据你回复的内容，提供一个用于搜索表情包的关键词（例如：“牛逼”、“委屈”、“亲亲”、“生气”、“你好”、“我操”等）。如果没有合适的关键词，请输出空字符串。
     """
     
-    var emojiApiKey: String = "50kRaR8wp0VUb3J7ymh"
+    var emojiApiKey: String = ""
     var isRunning: Bool = false
 }
 

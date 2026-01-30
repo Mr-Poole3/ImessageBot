@@ -28,12 +28,25 @@ class MessageEngine: ObservableObject {
             alertMessage = "机器人服务已停止"
             showAlert = true
         } else {
+            // 启动前先更新配置
+            self.configManager.config = config
+            
+            // 校验 API Key
+            if config.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                alertMessage = "服务启动失败：请先在设置中填写 Ark API Key。"
+                showAlert = true
+                return
+            }
+            
             start()
             
             if isRunning {
                 alertMessage = "机器人服务启动成功！"
             } else {
-                alertMessage = "服务启动失败：请确保已在“系统设置 -> 隐私与安全性 -> 完全磁盘访问权限”中添加并勾选了本应用。"
+                // 如果 start() 内部失败（比如权限问题），alertMessage 会被 start() 更新，这里只需要补充默认情况
+                if alertMessage.isEmpty || alertMessage == "机器人服务已停止" {
+                    alertMessage = "服务启动失败：请确保已在“系统设置 -> 隐私与安全性 -> 完全磁盘访问权限”中添加并勾选了本应用。"
+                }
             }
             showAlert = true
         }
@@ -45,7 +58,7 @@ class MessageEngine: ObservableObject {
         if sqlite3_open(dbPath, &db) != SQLITE_OK {
             let errorMsg = "数据库打开失败，请确保已授予“完全磁盘访问权限”"
             LogManager.shared.log(errorMsg, level: .error)
-            // 保持 isRunning 为 false，这样 UI 上的按钮状态就不会变
+            alertMessage = "服务启动失败：\(errorMsg)"
             isRunning = false
             return
         }

@@ -206,7 +206,21 @@ struct SettingsTabView: View {
                 Group {
                     ModernSection(title: "基础服务配置", icon: "key.fill") {
                         VStack(alignment: .leading, spacing: 16) {
-                            ModernTextField(label: "Ark API Key", text: $configManager.config.apiKey, isSecure: true, placeholder: "输入您的 API 密钥")
+                            ModernTextField(label: "Ark API Key", text: $configManager.config.apiKey, isSecure: true, placeholder: "请输入您的API KEY") {
+                                HStack(spacing: 4) {
+                                    if configManager.config.apiKey.isEmpty {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .foregroundColor(.orange)
+                                        Text("未设置 API Key，机器人将无法回复")
+                                            .foregroundColor(.orange)
+                                    }
+                                    Text("获取地址:")
+                                    Link("volcengine.com", destination: URL(string: "https://www.volcengine.com/")!)
+                                        .underline()
+                                }
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            }
                             ModernTextField(label: "消息唤醒词", text: $configManager.config.triggerPrefix, placeholder: "例如 . 或 @bot")
                         }
                     }
@@ -259,7 +273,23 @@ struct SettingsTabView: View {
                     }
                     
                     ModernSection(title: "扩展功能", icon: "face.smiling.fill") {
-                        ModernTextField(label: "表情包 API Key (Yaohud)", text: $configManager.config.emojiApiKey, placeholder: "输入表情包 API 密钥")
+                        VStack(alignment: .leading, spacing: 16) {
+                            ModernTextField(label: "表情包 API Key (Yaohud)", text: $configManager.config.emojiApiKey, placeholder: "请输入您的API KEY") {
+                                HStack(spacing: 4) {
+                                    if configManager.config.emojiApiKey.isEmpty {
+                                        Image(systemName: "info.circle.fill")
+                                            .foregroundColor(.blue)
+                                        Text("未设置则不启用表情包功能")
+                                            .foregroundColor(.blue)
+                                    }
+                                    Text("获取地址:")
+                                    Link("api.yaohud.cn", destination: URL(string: "https://api.yaohud.cn/doc/47")!)
+                                        .underline()
+                                }
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
                 
@@ -415,11 +445,20 @@ struct ModernSection<Content: View>: View {
     }
 }
 
-struct ModernTextField: View {
+struct ModernTextField<Footer: View>: View {
     let label: String
     @Binding var text: String
     var isSecure: Bool = false
     var placeholder: String = ""
+    var footer: Footer
+    
+    init(label: String, text: Binding<String>, isSecure: Bool = false, placeholder: String = "", @ViewBuilder footer: () -> Footer) {
+        self.label = label
+        self._text = text
+        self.isSecure = isSecure
+        self.placeholder = placeholder
+        self.footer = footer()
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -443,7 +482,15 @@ struct ModernTextField: View {
                 RoundedRectangle(cornerRadius: 6)
                     .stroke(Color.primary.opacity(0.1), lineWidth: 1)
             )
+            
+            footer
         }
+    }
+}
+
+extension ModernTextField where Footer == EmptyView {
+    init(label: String, text: Binding<String>, isSecure: Bool = false, placeholder: String = "") {
+        self.init(label: label, text: text, isSecure: isSecure, placeholder: placeholder, footer: { EmptyView() })
     }
 }
 
