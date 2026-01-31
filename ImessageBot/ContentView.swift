@@ -7,74 +7,111 @@ struct ContentView: View {
     @Binding var selectedTab: Int
     
     var body: some View {
-        HStack(spacing: 0) {
-            // Sidebar
-            VStack(spacing: 20) {
-                VStack(spacing: 12) {
-                    Image("logo")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 60, height: 60)
-                        .cornerRadius(12)
-                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    
-                    Text("iMessage Bot")
-                        .font(.system(size: 16, weight: .bold))
-                }
-                .padding(.top, 40)
-                
-                VStack(spacing: 4) {
-                    SidebarButton(title: "设置", icon: "gearshape.fill", isSelected: selectedTab == 0) {
-                        selectedTab = 0
-                    }
-                    SidebarButton(title: "日志", icon: "doc.text.fill", isSelected: selectedTab == 1) {
-                        selectedTab = 1
-                    }
-                }
-                .padding(.horizontal, 12)
-                
-                Spacer()
-                
-                VStack(spacing: 12) {
-                    StatusBadge(isRunning: engine.isRunning)
-                    
-                    Button(action: toggleEngine) {
-                        Text(engine.isRunning ? "停止服务" : "启动服务")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(engine.isRunning ? Color.red : Color.blue)
-                            .cornerRadius(8)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(16)
-                .background(Color.black.opacity(0.05))
-                .cornerRadius(12)
-                .padding(12)
-            }
-            .frame(width: 200)
-            .background(VisualEffectView(material: .sidebar, blendingMode: .behindWindow))
+        ZStack {
+            // Animated Gradient Background
+            BackgroundGradient()
+                .ignoresSafeArea()
             
-            Divider()
-            
-            // Main Content
-            ZStack {
-                Color(NSColor.windowBackgroundColor)
-                
-                if selectedTab == 0 {
-                    SettingsTabView(configManager: configManager)
-                } else {
-                    LogView(logs: logManager.logs)
+            HStack(spacing: 20) {
+                // Sidebar - Floating Glass Island
+                VStack(spacing: 24) {
+                    VStack(spacing: 16) {
+                        ZStack {
+                                Circle()
+                                    .fill(LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .frame(width: 64, height: 64)
+                                    .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                                
+                                Image("logo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 44, height: 44)
+                                .cornerRadius(10)
+                        }
+                        
+                        Text("iMessage Bot")
+                            .font(.system(size: 18, weight: .black, design: .rounded))
+                            .foregroundStyle(LinearGradient(colors: [.primary, .primary.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                    }
+                    .padding(.top, 40)
+                    
+                    VStack(spacing: 8) {
+                        SidebarButton(title: "设置", icon: "square.grid.2x2.fill", isSelected: selectedTab == 0) {
+                            withAnimation(.spring()) { selectedTab = 0 }
+                        }
+                        SidebarButton(title: "日志", icon: "terminal.fill", isSelected: selectedTab == 1) {
+                            withAnimation(.spring()) { selectedTab = 1 }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    
+                    Spacer()
+                    
+                    VStack(spacing: 16) {
+                        StatusBadge(isRunning: engine.isRunning)
+                        
+                        Button(action: toggleEngine) {
+                            Text(engine.isRunning ? "停止服务" : "启动服务")
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(
+                                    LinearGradient(
+                                        colors: engine.isRunning ? [.red, .orange] : [.blue, .cyan],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .cornerRadius(12)
+                                .shadow(color: (engine.isRunning ? Color.red : Color.blue).opacity(0.3), radius: 8, x: 0, y: 4)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .scaleEffect(engine.isRunning ? 1.0 : 1.02)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: engine.isRunning)
+                    }
+                    .padding(16)
+                    .background(Color.primary.opacity(0.05))
+                    .cornerRadius(20)
+                    .padding(12)
                 }
+                .frame(width: 220)
+                .background(
+                    VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24)
+                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        )
+                )
+                .padding(.vertical, 20)
+                .padding(.leading, 20)
+                
+                // Main Content - Glass Card
+                ZStack {
+                    VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24)
+                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        )
+                    
+                    if selectedTab == 0 {
+                        SettingsTabView(configManager: configManager)
+                            .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
+                    } else {
+                        LogView(logs: logManager.logs)
+                            .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
+                    }
+                }
+                .padding(.vertical, 20)
+                .padding(.trailing, 20)
+                .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
             }
         }
-        .frame(minWidth: 800, minHeight: 600)
-        .tint(.blue)
+        .frame(minWidth: 900, minHeight: 700)
         .onAppear {
             LogManager.shared.log("欢迎使用 iMessage Bot！程序已准备就绪。")
-            LogManager.shared.log("提示：请确保已在“系统设置 -> 隐私与安全性 -> 完全磁盘访问权限”中勾选本程序。", level: .warning)
         }
         .alert(engine.alertMessage, isPresented: $engine.showAlert) {
             Button("好的", role: .cancel) { }
@@ -82,14 +119,47 @@ struct ContentView: View {
     }
     
     func toggleEngine() {
-        engine.toggle(with: configManager.config)
-        if engine.isRunning {
-            selectedTab = 1
+        withAnimation(.spring()) {
+            engine.toggle(with: configManager.config)
+            if engine.isRunning {
+                selectedTab = 1
+            }
         }
     }
 }
 
-// MARK: - Components
+// MARK: - New Components
+
+struct BackgroundGradient: View {
+    @State private var animate = false
+    
+    var body: some View {
+        ZStack {
+            Color(NSColor.windowBackgroundColor)
+            
+            LinearGradient(colors: [Color.blue.opacity(0.12), Color.white.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                .hueRotation(.degrees(animate ? 10 : 0))
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 7).repeatForever(autoreverses: true)) {
+                        animate.toggle()
+                    }
+                }
+            
+            // Subtle blue mesh blobs
+            Circle()
+                .fill(Color.blue.opacity(0.08))
+                .frame(width: 500, height: 500)
+                .blur(radius: 100)
+                .offset(x: animate ? -50 : 50, y: animate ? 50 : -50)
+            
+            Circle()
+                .fill(Color.cyan.opacity(0.05))
+                .frame(width: 400, height: 400)
+                .blur(radius: 80)
+                .offset(x: animate ? 100 : -100, y: animate ? -50 : 50)
+        }
+    }
+}
 
 struct SidebarButton: View {
     let title: String
@@ -97,24 +167,54 @@ struct SidebarButton: View {
     let isSelected: Bool
     let action: () -> Void
     
+    @State private var isHovered = false
+    
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                    .frame(width: 20)
+                Image(systemName: isSelected ? icon : icon.replacingOccurrences(of: ".fill", with: ""))
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(isSelected ? 
+                        AnyShapeStyle(LinearGradient(colors: [.blue, .cyan], startPoint: .top, endPoint: .bottom)) : 
+                        AnyShapeStyle(Color.secondary.opacity(0.8)))
+                    .frame(width: 24)
+                
                 Text(title)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 14, weight: isSelected ? .bold : .medium, design: .rounded))
+                
                 Spacer()
+                
+                if isSelected {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 4, height: 4)
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle()) // 关键：将整个区域设为可点击
-            .background(isSelected ? Color.blue.opacity(0.1) : Color.clear)
-            .foregroundColor(isSelected ? .blue : .primary)
-            .cornerRadius(8)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                ZStack {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.blue.opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                            )
+                    } else if isHovered {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.primary.opacity(0.05))
+                    }
+                }
+            )
+            .foregroundColor(isSelected ? .primary : .secondary)
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
+        }
     }
 }
 
@@ -122,14 +222,29 @@ struct StatusBadge: View {
     let isRunning: Bool
     
     var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(isRunning ? Color.green : Color.gray)
-                .frame(width: 8, height: 8)
-            Text(isRunning ? "正在运行" : "服务已停止")
-                .font(.system(size: 12, weight: .medium))
+        HStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(isRunning ? Color.green : Color.gray)
+                    .frame(width: 10, height: 10)
+                
+                if isRunning {
+                    Circle()
+                        .stroke(Color.green.opacity(0.5), lineWidth: 2)
+                        .scaleEffect(1.5)
+                        .opacity(0)
+                        .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false), value: isRunning)
+                }
+            }
+            
+            Text(isRunning ? "服务正在运行" : "服务已停止")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundColor(isRunning ? .green : .secondary)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(isRunning ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
+        .cornerRadius(20)
     }
 }
 
@@ -153,55 +268,57 @@ struct SettingsTabView: View {
                     .focused($focusedField, equals: "dummy")
 
                 HStack {
-                    Text("设置")
-                        .font(.system(size: 28, weight: .bold))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("设置")
+                            .font(.system(size: 32, weight: .black, design: .rounded))
+                        Text("配置您的 iMessage 机器人助手")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundColor(.secondary)
+                    }
+                    
                     Spacer()
                     
-                    HStack(spacing: 12) {
-                        if showSuccess {
-                            HStack(spacing: 4) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                Text("保存成功")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(.green)
+                    HStack(spacing: 16) {
+                        if showSuccess || showError {
+                            HStack(spacing: 6) {
+                                Image(systemName: showSuccess ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                    .foregroundColor(showSuccess ? .green : .red)
+                                Text(showSuccess ? "保存成功" : "保存失败")
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .foregroundColor(showSuccess ? .green : .red)
                             }
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
-                        }
-                        
-                        if showError {
-                            HStack(spacing: 4) {
-                                Image(systemName: "exclamationmark.circle.fill")
-                                    .foregroundColor(.red)
-                                Text("保存失败")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(.red)
-                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background((showSuccess ? Color.green : Color.red).opacity(0.1))
+                            .cornerRadius(12)
                             .transition(.move(edge: .trailing).combined(with: .opacity))
                         }
                         
                         Button(action: saveSettings) {
-                            HStack(spacing: 6) {
+                            HStack(spacing: 8) {
                                 if isSaving {
                                     ProgressView()
                                         .controlSize(.small)
                                 } else {
-                                    Image(systemName: "checkmark.circle.fill")
+                                    Image(systemName: "arrow.down.doc.fill")
                                 }
-                                Text(isSaving ? "正在保存..." : "保存设置")
+                                Text(isSaving ? "保存中..." : "保存更改")
                             }
-                            .font(.system(size: 13, weight: .semibold))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.blue)
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(
+                                LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
+                            )
                             .foregroundColor(.white)
-                            .cornerRadius(8)
+                            .cornerRadius(14)
+                            .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
                         }
                         .buttonStyle(.plain)
                         .disabled(isSaving)
                     }
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, 16)
                 
                 Group {
                     ModernSection(title: "基础服务配置", icon: "key.fill") {
@@ -366,50 +483,70 @@ struct PersonaCardView: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
     
+    @State private var isHovered = false
+    
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             // 选择指示器
-            Circle()
-                .fill(isSelected ? Color.blue : Color.clear)
-                .frame(width: 8, height: 8)
-                .overlay(Circle().stroke(Color.primary.opacity(0.1), lineWidth: 1))
+            ZStack {
+                Circle()
+                    .stroke(isSelected ? Color.blue : Color.primary.opacity(0.1), lineWidth: 2)
+                    .frame(width: 20, height: 20)
+                
+                if isSelected {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 10, height: 10)
+                }
+            }
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(card.cardName)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                 Text("角色名: \(card.personaName)")
-                    .font(.system(size: 12))
+                    .font(.system(size: 13, design: .rounded))
                     .foregroundColor(.secondary)
             }
             
             Spacer()
             
-            HStack(spacing: 8) {
+            HStack(spacing: 12) {
                 Button(action: onEdit) {
                     Image(systemName: "pencil.circle.fill")
-                        .foregroundColor(.gray)
+                        .font(.system(size: 20))
+                        .foregroundColor(.blue.opacity(0.8))
                 }
                 .buttonStyle(.plain)
                 
                 Button(action: onDelete) {
                     Image(systemName: "trash.circle.fill")
-                        .foregroundColor(.red.opacity(0.8))
+                        .font(.system(size: 20))
+                        .foregroundColor(.red.opacity(0.6))
                 }
                 .buttonStyle(.plain)
                 .opacity(isSelected ? 0.3 : 1.0)
-                .disabled(isSelected) // 不允许删除当前选中的
+                .disabled(isSelected)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(isSelected ? Color.blue.opacity(0.15) : Color.primary.opacity(0.03)) // 增加选中时的背景深度
-        .cornerRadius(10)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(
+            isSelected ? 
+            LinearGradient(colors: [.blue.opacity(0.15), .cyan.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing) : 
+            LinearGradient(colors: [Color.primary.opacity(0.03)], startPoint: .top, endPoint: .bottom)
+        )
+        .cornerRadius(16)
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(isSelected ? Color.blue.opacity(0.5) : Color.clear, lineWidth: 2) // 增加边框粗细和不透明度
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1)
         )
         .contentShape(Rectangle())
         .onTapGesture(perform: onSelect)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
+        }
     }
 }
 
@@ -425,22 +562,28 @@ struct ModernSection<Content: View>: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .foregroundColor(.blue)
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.blue)
+                }
                 Text(title)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
             }
             
             content
         }
-        .padding(20)
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
-        .cornerRadius(12)
+        .padding(24)
+        .background(Color.white.opacity(0.03))
+        .cornerRadius(20)
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.white.opacity(0.05), lineWidth: 1)
         )
     }
 }
@@ -452,6 +595,8 @@ struct ModernTextField<Footer: View>: View {
     var placeholder: String = ""
     var footer: Footer
     
+    @FocusState private var isFocused: Bool
+    
     init(label: String, text: Binding<String>, isSecure: Bool = false, placeholder: String = "", @ViewBuilder footer: () -> Footer) {
         self.label = label
         self._text = text
@@ -461,9 +606,9 @@ struct ModernTextField<Footer: View>: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(label)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundColor(.secondary)
             
             Group {
@@ -473,15 +618,17 @@ struct ModernTextField<Footer: View>: View {
                     TextField(placeholder, text: $text)
                 }
             }
+            .focused($isFocused)
             .textFieldStyle(.plain)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(6)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color.primary.opacity(0.04))
+            .cornerRadius(12)
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isFocused ? Color.blue.opacity(0.5) : Color.primary.opacity(0.1), lineWidth: 1.5)
             )
+            .animation(.easeInOut(duration: 0.2), value: isFocused)
             
             footer
         }
@@ -518,40 +665,58 @@ struct LogView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("实时日志")
-                    .font(.headline)
-                Spacer()
-                Button("清空日志") {
-                    LogManager.shared.clear()
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("运行日志")
+                        .font(.system(size: 24, weight: .black, design: .rounded))
+                    Text("实时监控机器人运行状态")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundColor(.secondary)
                 }
-                .buttonStyle(.borderless)
-                .foregroundColor(.accentColor)
+                Spacer()
+                Button(action: { LogManager.shared.clear() }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "trash.fill")
+                        Text("清空日志")
+                    }
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.red.opacity(0.1))
+                    .foregroundColor(.red)
+                    .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
             }
-            .padding(10)
-            .background(Color.secondary.opacity(0.1))
+            .padding(24)
+            
+            Divider()
+                .opacity(0.1)
             
             List {
                 ForEach(logs) { entry in
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("[\(entry.formattedTime)]")
-                            .font(.system(.caption, design: .monospaced))
+                    HStack(alignment: .top, spacing: 12) {
+                        Text(entry.formattedTime)
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
                             .foregroundColor(.secondary)
+                            .frame(width: 70, alignment: .leading)
                         
                         Text(entry.message)
-                            .font(.system(.body, design: .monospaced))
+                            .font(.system(size: 13, design: .monospaced))
                             .foregroundColor(entryColor(for: entry.level))
                             .textSelection(.enabled)
                     }
-                    .padding(.vertical, 2)
+                    .padding(.vertical, 4)
+                    .listRowBackground(Color.clear)
                 }
             }
-            .listStyle(.inset)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
         }
     }
     
     private func entryColor(for level: LogManager.LogLevel) -> Color {
         switch level {
-        case .info: return .primary
+        case .info: return .primary.opacity(0.9)
         case .warning: return .orange
         case .error: return .red
         case .success: return .green
@@ -567,92 +732,83 @@ struct PromptDetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("编辑角色设定")
-                        .font(.system(size: 18, weight: .bold))
-                    Text("System Prompt 将由姓名和设计内容自动生成")
-                        .font(.system(size: 12))
+                        .font(.system(size: 24, weight: .black, design: .rounded))
+                    Text("System Prompt 将根据角色名和描述自动生成")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                Button("保存并完成") {
+                Button(action: {
                     onSave(persona)
                     dismiss()
+                }) {
+                    Text("保存设置")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing))
+                        .foregroundColor(.white)
+                        .cornerRadius(14)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(.plain)
             }
-            .padding(24)
-            .background(Color(NSColor.windowBackgroundColor))
+            .padding(32)
+            .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
             
-            Divider()
+            Divider().opacity(0.1)
             
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("卡片命名")
-                            .font(.system(size: 13, weight: .semibold))
-                        TextField("例如：卡片1", text: $persona.cardName)
-                            .textFieldStyle(.roundedBorder)
-                    }
+                VStack(alignment: .leading, spacing: 28) {
+                    ModernTextField(label: "卡片命名", text: $persona.cardName, placeholder: "例如：日常助手")
+                    
+                    ModernTextField(label: "人格名字", text: $persona.personaName, placeholder: "机器人对自己的称呼")
                     
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("人格名字")
-                            .font(.system(size: 13, weight: .semibold))
-                        TextField("例如：青竹", text: $persona.personaName)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("您希望它能做什么？")
-                            .font(.system(size: 13, weight: .semibold))
-                        TextEditor(text: $persona.description)
-                            .font(.system(size: 13))
-                            .frame(height: 200)
-                            .padding(4)
-                            .scrollContentBackground(.hidden)
-                            .background(Color(NSColor.controlBackgroundColor))
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 1))
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("预览生成的 System Prompt")
-                            .font(.system(size: 12, weight: .semibold))
+                        Text("角色能力与描述")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundColor(.secondary)
+                        
+                        TextEditor(text: $persona.description)
+                            .font(.system(size: 14, design: .rounded))
+                            .frame(height: 180)
+                            .padding(12)
+                            .scrollContentBackground(.hidden)
+                            .background(Color.primary.opacity(0.04))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                            )
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "eye.fill")
+                                .font(.system(size: 12))
+                            Text("System Prompt 预览")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                        }
+                        .foregroundColor(.secondary)
+                        
                         Text(persona.systemPrompt)
                             .font(.system(size: 12, design: .monospaced))
-                            .padding(12)
+                            .padding(16)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.primary.opacity(0.03))
-                            .cornerRadius(8)
+                            .background(Color.blue.opacity(0.05))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.blue.opacity(0.1), lineWidth: 1)
+                            )
                     }
                 }
-                .padding(24)
+                .padding(32)
             }
         }
-        .frame(width: 500, height: 600)
-    }
-}
-
-struct SectionView<Content: View>: View {
-    let title: String
-    let content: Content
-    
-    init(title: String, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
-            content
-        }
-        .padding()
-        .background(Color.secondary.opacity(0.05))
-        .cornerRadius(12)
+        .frame(width: 550, height: 680)
+        .background(Color(NSColor.windowBackgroundColor))
     }
 }
 
