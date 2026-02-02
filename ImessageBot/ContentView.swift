@@ -77,11 +77,11 @@ struct ContentView: View {
                 }
                 .frame(width: 220)
                 .background(
-                    VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+                    VisualEffectView(material: .windowBackground, blendingMode: .behindWindow)
                         .clipShape(RoundedRectangle(cornerRadius: 24))
                         .overlay(
                             RoundedRectangle(cornerRadius: 24)
-                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
                         )
                 )
                 .padding(.vertical, 20)
@@ -89,11 +89,11 @@ struct ContentView: View {
                 
                 // Main Content - Glass Card
                 ZStack {
-                    VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+                    VisualEffectView(material: .windowBackground, blendingMode: .behindWindow)
                         .clipShape(RoundedRectangle(cornerRadius: 24))
                         .overlay(
                             RoundedRectangle(cornerRadius: 24)
-                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
                         )
                     
                     if selectedTab == 0 {
