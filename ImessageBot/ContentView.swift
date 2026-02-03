@@ -352,6 +352,40 @@ struct SettingsTabView: View {
                             Divider().opacity(0.5)
                             
                             ModernTextField(label: "消息唤醒词", text: $configManager.config.triggerPrefix, placeholder: "例如 . 或 @bot")
+                            
+                            Divider().opacity(0.5)
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Text("上下文记忆深度")
+                                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    Text("\(configManager.config.contextMemoryLimit) 条")
+                                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                        .foregroundStyle(.blue)
+                                }
+                                
+                                Slider(value: Binding(
+                                    get: { Double(configManager.config.contextMemoryLimit) },
+                                    set: { configManager.config.contextMemoryLimit = Int($0) }
+                                ), in: 1...20, step: 1) {
+                                    Text("Memory Limit")
+                                } minimumValueLabel: {
+                                    Text("1")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                } maximumValueLabel: {
+                                    Text("20")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .tint(.blue)
+                                
+                                Text("机器人将参考最近 \(configManager.config.contextMemoryLimit) 条历史消息进行回复")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .sheet(isPresented: $showProviderConfig) {

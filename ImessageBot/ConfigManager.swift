@@ -109,6 +109,8 @@ struct AppConfig: Codable {
     """
     
     var emojiApiKey: String = ""
+    // Number of historical messages to include in context (1-20)
+    var contextMemoryLimit: Int = 10
     var isRunning: Bool = false
 }
 

@@ -15,6 +15,11 @@ actor DatabaseService {
         let sender: String
     }
     
+    struct ChatMessage {
+        let text: String
+        let isFromMe: Bool
+    }
+    
     func open() throws {
         if sqlite3_open(dbPath, &db) != SQLITE_OK {
             throw DatabaseError.openFailed
@@ -71,5 +76,44 @@ actor DatabaseService {
         }
         sqlite3_finalize(statement)
         return result
+    }
+    
+    func getRecentMessages(handleId: String, limit: Int) -> [ChatMessage] {
+        guard let db = db else { return [] }
+        
+        let query = """
+        SELECT message.text, message.is_from_me
+        FROM message
+        JOIN handle ON message.handle_id = handle.rowid
+        WHERE handle.id = ? AND message.text IS NOT NULL
+        ORDER BY message.date DESC
+        LIMIT ?
+        """
+        
+        var statement: OpaquePointer?
+        var messages: [ChatMessage] = []
+        
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            // Bind parameters
+            sqlite3_bind_text(statement, 1, (handleId as NSString).utf8String, -1, nil)
+            sqlite3_bind_int(statement, 2, Int32(limit))
+            
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let textPtr = sqlite3_column_text(statement, 0)
+                let isFromMe = sqlite3_column_int(statement, 1) != 0
+                
+                if let textPtr = textPtr {
+                    let text = String(cString: textPtr)
+                    // Simple filtering to avoid empty messages or just whitespace
+                    if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        messages.append(ChatMessage(text: text, isFromMe: isFromMe))
+                    }
+                }
+            }
+        }
+        sqlite3_finalize(statement)
+        
+        // Return reversed to be in chronological order (oldest -> newest)
+        return messages.reversed()
     }
 }

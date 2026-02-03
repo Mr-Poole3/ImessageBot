@@ -128,7 +128,23 @@ class MessageEngine: ObservableObject {
         Task {
             do {
                 let cleanInput = text.replacingOccurrences(of: config.triggerPrefix, with: "").trimmingCharacters(in: .whitespaces)
-                let (reply, emojiKeyword) = try await AIService.getResponse(input: cleanInput, config: config)
+                
+                // Fetch context history
+                // We fetch limit + 1 to account for the potential presence of the current trigger message
+                var history = await databaseService.getRecentMessages(handleId: sender, limit: config.contextMemoryLimit + 1)
+                
+                // Filter out the current message if it appears at the end of the history
+                // This prevents the AI from seeing the current prompt as part of the history (which would be redundant)
+                if let last = history.last, last.text == text && !last.isFromMe {
+                    history.removeLast()
+                }
+                
+                // Ensure we respect the user's configured limit
+                if history.count > config.contextMemoryLimit {
+                    history = Array(history.suffix(config.contextMemoryLimit))
+                }
+                
+                let (reply, emojiKeyword) = try await AIService.getResponse(input: cleanInput, history: history, config: config)
                 
                 LogManager.shared.log("AI 回复: \(reply)")
                 
@@ -218,7 +234,8 @@ class MessageEngine: ObservableObject {
     private func splitText(_ text: String) -> [String] {
         // 修正后的正则：匹配非分隔符序列，后跟可选的分隔符序列
         // 分隔符包括：中英文句号、感叹号、问号、省略号、换行、波浪号
-        let pattern = "([^。！？…!?.\\n~～]+[。！？…!?.\\n~～]*)"
+        // 特殊处理：点号(.)只有在后面不跟数字时才视为分隔符，以避免切分小数（如 -6.0）
+        let pattern = "((?:[^。！？…!?.\\n~～]|\\.(?=\\d))+(?:[。！？…!?\\n~～]|\\.(?!\\d))*)"
         
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
             return [text]
