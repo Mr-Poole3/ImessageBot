@@ -262,6 +262,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "需要发送指令给 iMessage 以回复消息";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "需要访问日历以创建日程提醒";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "需要访问日历以创建日程提醒";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -299,6 +301,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "需要发送指令给 iMessage 以回复消息";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "需要访问日历以创建日程提醒";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "需要访问日历以创建日程提醒";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

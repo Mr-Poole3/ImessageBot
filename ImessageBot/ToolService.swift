@@ -73,6 +73,39 @@ class ToolService {
                         required: ["query"]
                     )
                 )
+            ),
+            Tool(
+                type: "function",
+                function: Tool.Function(
+                    name: "create_calendar_event",
+                    description: "创建系统日历日程。当用户需要设置提醒、安排会议或记录日程时使用。请解析出具体的日期时间。",
+                    parameters: Tool.Parameters(
+                        type: "object",
+                        properties: [
+                            "title": Tool.Property(
+                                type: "string",
+                                description: "日程标题/内容",
+                                enumValues: nil
+                            ),
+                            "start_time": Tool.Property(
+                                type: "string",
+                                description: "开始时间，格式必须为 yyyy-MM-dd HH:mm:ss，例如 2024-02-01 14:00:00",
+                                enumValues: nil
+                            ),
+                            "end_time": Tool.Property(
+                                type: "string",
+                                description: "结束时间，格式同上（可选，默认1小时）",
+                                enumValues: nil
+                            ),
+                            "notes": Tool.Property(
+                                type: "string",
+                                description: "备注信息（可选）",
+                                enumValues: nil
+                            )
+                        ],
+                        required: ["title", "start_time"]
+                    )
+                )
             )
         ]
     }
@@ -90,6 +123,28 @@ class ToolService {
                 return await WebSearchService.search(query: query)
             }
             return "参数错误: 缺少 query"
+        case "create_calendar_event":
+            if let title = arguments["title"] as? String,
+               let startTimeStr = arguments["start_time"] as? String {
+                
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                formatter.locale = Locale(identifier: "en_US_POSIX") // Ensure fixed format
+                
+                guard let startDate = formatter.date(from: startTimeStr) else {
+                    return "日期解析失败，请确保格式为 yyyy-MM-dd HH:mm:ss"
+                }
+                
+                var endDate: Date? = nil
+                if let endTimeStr = arguments["end_time"] as? String {
+                    endDate = formatter.date(from: endTimeStr)
+                }
+                
+                let notes = arguments["notes"] as? String
+                
+                return await CalendarService.shared.createEvent(title: title, startDate: startDate, endDate: endDate, notes: notes)
+            }
+            return "参数错误: 缺少 title 或 start_time"
         default:
             return "未知工具: \(name)"
         }

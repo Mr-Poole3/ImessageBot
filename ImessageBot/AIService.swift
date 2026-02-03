@@ -356,7 +356,14 @@ class AIService {
     
     private static func buildMessages(history: [DatabaseService.ChatMessage], input: String, systemPrompt: String) -> [[String: Any]] {
         var messages: [[String: Any]] = []
-        messages.append(["role": "system", "content": systemPrompt])
+        
+        // Inject current time into system prompt
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let currentTime = formatter.string(from: Date())
+        let systemPromptWithTime = "\(systemPrompt)\n\nCurrent Time: \(currentTime)"
+        
+        messages.append(["role": "system", "content": systemPromptWithTime])
         
         for msg in history {
             messages.append([
