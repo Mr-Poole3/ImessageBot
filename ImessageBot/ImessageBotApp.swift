@@ -10,7 +10,7 @@ import SwiftUI
 @main
 struct ImessageBotApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var configManager = ConfigManager()
+    @StateObject private var configManager: ConfigManager
     @StateObject private var engine: MessageEngine
     
     init() {

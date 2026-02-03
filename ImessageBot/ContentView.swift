@@ -26,7 +26,7 @@ struct ContentView: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 44, height: 44)
-                                .cornerRadius(10)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
                         
                         Text("iMessage Bot")
@@ -53,7 +53,7 @@ struct ContentView: View {
                         Button(action: toggleEngine) {
                             Text(engine.isRunning ? "停止服务" : "启动服务")
                                 .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                                 .background(
@@ -63,7 +63,7 @@ struct ContentView: View {
                                         endPoint: .trailing
                                     )
                                 )
-                                .cornerRadius(12)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
                                 .shadow(color: (engine.isRunning ? Color.red : Color.blue).opacity(0.3), radius: 8, x: 0, y: 4)
                         }
                         .buttonStyle(PlainButtonStyle())
@@ -72,7 +72,7 @@ struct ContentView: View {
                     }
                     .padding(16)
                     .background(Color.primary.opacity(0.05))
-                    .cornerRadius(20)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
                     .padding(12)
                 }
                 .frame(width: 220)
@@ -207,7 +207,7 @@ struct SidebarButton: View {
                     }
                 }
             )
-            .foregroundColor(isSelected ? .primary : .secondary)
+            .foregroundStyle(isSelected ? .primary : .secondary)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -239,12 +239,14 @@ struct StatusBadge: View {
             
             Text(isRunning ? "服务正在运行" : "服务已停止")
                 .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundColor(isRunning ? .green : .secondary)
+                .foregroundStyle(isRunning ? .green : .secondary)
+                .lineLimit(1)
+                .fixedSize()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(isRunning ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
-        .cornerRadius(20)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }
 
@@ -254,92 +256,106 @@ struct SettingsTabView: View {
     @State private var showSuccess = false
     @State private var showError = false
     @State private var editingPersona: PersonaCard?
+    @State private var showProviderConfig = false
     
     // 用于管理输入框聚焦状态，防止页面进入时自动全选第一个输入框
     @FocusState private var focusedField: String?
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 32) {
                 // 这是一个隐藏的聚焦元素，用来“拦截” macOS 自动聚焦第一个输入框的行为
                 TextField("", text: .constant(""))
                     .frame(width: 0, height: 0)
                     .opacity(0)
                     .focused($focusedField, equals: "dummy")
 
-                HStack {
+                HStack(alignment: .bottom) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("设置")
-                            .font(.system(size: 32, weight: .black, design: .rounded))
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
                         Text("配置您的 iMessage 机器人助手")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
                     }
                     
                     Spacer()
                     
-                    HStack(spacing: 16) {
+                    HStack(spacing: 12) {
                         if showSuccess || showError {
                             HStack(spacing: 6) {
                                 Image(systemName: showSuccess ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                                    .foregroundColor(showSuccess ? .green : .red)
+                                    .foregroundStyle(showSuccess ? .green : .red)
                                 Text(showSuccess ? "保存成功" : "保存失败")
-                                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                                    .foregroundColor(showSuccess ? .green : .red)
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(showSuccess ? .green : .red)
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                             .background((showSuccess ? Color.green : Color.red).opacity(0.1))
-                            .cornerRadius(12)
+                            .clipShape(Capsule())
                             .transition(.move(edge: .trailing).combined(with: .opacity))
                         }
                         
                         Button(action: saveSettings) {
-                            HStack(spacing: 8) {
+                            HStack(spacing: 6) {
                                 if isSaving {
                                     ProgressView()
                                         .controlSize(.small)
                                 } else {
                                     Image(systemName: "arrow.down.doc.fill")
+                                        .font(.system(size: 12))
                                 }
                                 Text(isSaving ? "保存中..." : "保存更改")
                             }
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
                             .background(
                                 LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing)
                             )
-                            .foregroundColor(.white)
-                            .cornerRadius(14)
-                            .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                            .foregroundStyle(.white)
+                            .clipShape(Capsule())
+                            .shadow(color: .blue.opacity(0.3), radius: 6, x: 0, y: 3)
                         }
                         .buttonStyle(.plain)
                         .disabled(isSaving)
                     }
                 }
-                .padding(.bottom, 16)
+                .padding(.bottom, 8)
                 
                 Group {
                     ModernSection(title: "基础服务配置", icon: "key.fill") {
-                        VStack(alignment: .leading, spacing: 16) {
-                            ModernTextField(label: "Ark API Key", text: $configManager.config.apiKey, isSecure: true, placeholder: "请输入您的API KEY") {
-                                HStack(spacing: 4) {
-                                    if configManager.config.apiKey.isEmpty {
-                                        Image(systemName: "exclamationmark.triangle.fill")
-                                            .foregroundColor(.orange)
-                                        Text("未设置 API Key，机器人将无法回复")
-                                            .foregroundColor(.orange)
+                        VStack(alignment: .leading, spacing: 20) {
+                            
+                            // Provider Selection
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("AI 模型服务商")
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                
+                                HStack(spacing: 12) {
+                                    ForEach(AIProvider.allCases) { provider in
+                                        ProviderCard(
+                                            provider: provider,
+                                            isSelected: configManager.config.selectedProvider == provider
+                                        ) {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                                configManager.config.selectedProvider = provider
+                                            }
+                                            showProviderConfig = true
+                                        }
                                     }
-                                    Text("获取地址:")
-                                    Link("volcengine.com", destination: URL(string: "https://www.volcengine.com/")!)
-                                        .underline()
                                 }
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
                             }
+                            
+                            Divider().opacity(0.5)
+                            
                             ModernTextField(label: "消息唤醒词", text: $configManager.config.triggerPrefix, placeholder: "例如 . 或 @bot")
                         }
+                    }
+                    .sheet(isPresented: $showProviderConfig) {
+                        ProviderConfigSheet(configManager: configManager, isPresented: $showProviderConfig)
                     }
                     
                     ModernSection(title: "角色人格库", icon: "person.text.rectangle.fill") {
@@ -348,7 +364,7 @@ struct SettingsTabView: View {
                             HStack {
                                 Text("管理人格设定卡片，点击选择当前生效的角色")
                                     .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                 Spacer()
                                 Button(action: addPersona) {
                                     HStack(spacing: 4) {
@@ -356,7 +372,7 @@ struct SettingsTabView: View {
                                         Text("添加新角色")
                                     }
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.blue)
+                                    .foregroundStyle(.blue)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -395,16 +411,16 @@ struct SettingsTabView: View {
                                 HStack(spacing: 4) {
                                     if configManager.config.emojiApiKey.isEmpty {
                                         Image(systemName: "info.circle.fill")
-                                            .foregroundColor(.blue)
+                                            .foregroundStyle(.blue)
                                         Text("未设置则不启用表情包功能")
-                                            .foregroundColor(.blue)
+                                            .foregroundStyle(.blue)
                                     }
                                     Text("获取地址:")
                                     Link("api.yaohud.cn", destination: URL(string: "https://api.yaohud.cn/doc/47")!)
                                         .underline()
                                 }
                                 .font(.system(size: 11))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -412,10 +428,10 @@ struct SettingsTabView: View {
                 
                 HStack {
                     Image(systemName: "info.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Text("提示：保存后配置将立即生效，无需重启服务。")
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .padding(.top, 8)
             }
@@ -505,7 +521,7 @@ struct PersonaCardView: View {
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                 Text("角色名: \(card.personaName)")
                     .font(.system(size: 13, design: .rounded))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             
             Spacer()
@@ -514,14 +530,14 @@ struct PersonaCardView: View {
                 Button(action: onEdit) {
                     Image(systemName: "pencil.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(.blue.opacity(0.8))
+                        .foregroundStyle(.blue.opacity(0.8))
                 }
                 .buttonStyle(.plain)
                 
                 Button(action: onDelete) {
                     Image(systemName: "trash.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(.red.opacity(0.6))
+                        .foregroundStyle(.red.opacity(0.6))
                 }
                 .buttonStyle(.plain)
                 .opacity(isSelected ? 0.3 : 1.0)
@@ -535,7 +551,7 @@ struct PersonaCardView: View {
             LinearGradient(colors: [.blue.opacity(0.15), .cyan.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing) : 
             LinearGradient(colors: [Color.primary.opacity(0.03)], startPoint: .top, endPoint: .bottom)
         )
-        .cornerRadius(16)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1)
@@ -570,7 +586,7 @@ struct ModernSection<Content: View>: View {
                         .frame(width: 32, height: 32)
                     Image(systemName: icon)
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.blue)
+                        .foregroundStyle(.blue)
                 }
                 Text(title)
                     .font(.system(size: 18, weight: .bold, design: .rounded))
@@ -580,7 +596,7 @@ struct ModernSection<Content: View>: View {
         }
         .padding(24)
         .background(Color.white.opacity(0.03))
-        .cornerRadius(20)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
                 .stroke(Color.white.opacity(0.05), lineWidth: 1)
@@ -609,7 +625,7 @@ struct ModernTextField<Footer: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             
             Group {
                 if isSecure {
@@ -623,7 +639,7 @@ struct ModernTextField<Footer: View>: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(Color.primary.opacity(0.04))
-            .cornerRadius(12)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(isFocused ? Color.blue.opacity(0.5) : Color.primary.opacity(0.1), lineWidth: 1.5)
@@ -670,7 +686,7 @@ struct LogView: View {
                         .font(.system(size: 24, weight: .black, design: .rounded))
                     Text("实时监控机器人运行状态")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button(action: { LogManager.shared.clear() }) {
@@ -682,8 +698,8 @@ struct LogView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(Color.red.opacity(0.1))
-                    .foregroundColor(.red)
-                    .cornerRadius(12)
+                    .foregroundStyle(.red)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
             }
@@ -697,12 +713,12 @@ struct LogView: View {
                     HStack(alignment: .top, spacing: 12) {
                         Text(entry.formattedTime)
                             .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .frame(width: 70, alignment: .leading)
                         
                         Text(entry.message)
                             .font(.system(size: 13, design: .monospaced))
-                            .foregroundColor(entryColor(for: entry.level))
+                            .foregroundStyle(entryColor(for: entry.level))
                             .textSelection(.enabled)
                     }
                     .padding(.vertical, 4)
@@ -737,7 +753,7 @@ struct PromptDetailView: View {
                         .font(.system(size: 24, weight: .black, design: .rounded))
                     Text("System Prompt 将根据角色名和描述自动生成")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button(action: {
@@ -749,8 +765,8 @@ struct PromptDetailView: View {
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
                         .background(LinearGradient(colors: [.blue, .cyan], startPoint: .leading, endPoint: .trailing))
-                        .foregroundColor(.white)
-                        .cornerRadius(14)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 .buttonStyle(.plain)
             }
@@ -768,7 +784,7 @@ struct PromptDetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("角色能力与描述")
                             .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         
                         TextEditor(text: $persona.description)
                             .font(.system(size: 14, design: .rounded))
@@ -776,7 +792,7 @@ struct PromptDetailView: View {
                             .padding(12)
                             .scrollContentBackground(.hidden)
                             .background(Color.primary.opacity(0.04))
-                            .cornerRadius(12)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(Color.primary.opacity(0.1), lineWidth: 1)
@@ -790,14 +806,14 @@ struct PromptDetailView: View {
                             Text("System Prompt 预览")
                                 .font(.system(size: 12, weight: .bold, design: .rounded))
                         }
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         
                         Text(persona.systemPrompt)
                             .font(.system(size: 12, design: .monospaced))
                             .padding(16)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color.blue.opacity(0.05))
-                            .cornerRadius(12)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(Color.blue.opacity(0.1), lineWidth: 1)

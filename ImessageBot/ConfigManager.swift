@@ -22,8 +22,60 @@ struct PersonaCard: Codable, Identifiable, Equatable {
     }
 }
 
+enum AIProvider: String, Codable, CaseIterable, Identifiable {
+    case volcengine = "Volcengine"
+    case openai = "OpenAI"
+    case ollama = "Ollama"
+    
+    var id: String { self.rawValue }
+    
+    var icon: String {
+        switch self {
+        case .volcengine: return "icon_volcengine"
+        case .openai: return "icon_openai"
+        case .ollama: return "icon_ollama"
+        }
+    }
+    
+    var systemIcon: String {
+        switch self {
+        case .volcengine: return "cloud.fill"
+        case .openai: return "sparkles"
+        case .ollama: return "cpu.fill"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .volcengine: return "火山引擎 (豆包)"
+        case .openai: return "OpenAI / 兼容接口"
+        case .ollama: return "本地 / 远程 LLM"
+        }
+    }
+}
+
 struct AppConfig: Codable {
+    // Legacy support: apiKey was originally used for Volcengine
     var apiKey: String = ""
+    
+    // AI Provider Selection
+    var selectedProvider: AIProvider = .volcengine
+    
+    // Provider Specific Settings
+    // Volcengine
+    var volcengineApiKey: String = ""
+    var volcengineBaseURL: String = "https://ark.cn-beijing.volces.com/api/v3"
+    var volcengineModel: String = "doubao-seed-1-6-flash-250828"
+    
+    // OpenAI
+    var openaiApiKey: String = ""
+    var openaiBaseURL: String = "https://api.openai.com/v1"
+    var openaiModel: String = "gpt-3.5-turbo"
+    
+    // Ollama
+    var ollamaBaseURL: String = "http://localhost:11434"
+    var ollamaModel: String = "llama3"
+    
     var triggerPrefix: String = "."
     var personaCards: [PersonaCard] = [
         PersonaCard(
@@ -75,6 +127,13 @@ class ConfigManager: ObservableObject {
         // 确保有一个默认选中的角色
         if config.selectedPersonaId == nil {
             config.selectedPersonaId = config.personaCards.first?.id
+        }
+        
+        // Migration: If apiKey exists but volcengineApiKey is empty, migrate it
+        if !config.apiKey.isEmpty && config.volcengineApiKey.isEmpty {
+            config.volcengineApiKey = config.apiKey
+            // We can optionally clear the old apiKey, but keeping it for safety might be okay.
+            // Let's not clear it for now to avoid data loss if user downgrades (unlikely but safe).
         }
     }
     

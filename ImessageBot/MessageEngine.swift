@@ -2,11 +2,11 @@ import Foundation
 import SQLite3
 import Combine
 
+@MainActor
 class MessageEngine: ObservableObject {
-    private var db: OpaquePointer?
-    private let dbPath = NSString(string: "~/Library/Messages/chat.db").expandingTildeInPath
+    private let databaseService = DatabaseService()
     private var lastProcessedRowID: Int64 = 0
-    private var timer: Timer?
+    private var pollingTask: Task<Void, Never>?
     
     @Published var isRunning = false
     @Published var showAlert = false
@@ -25,113 +25,106 @@ class MessageEngine: ObservableObject {
     func toggle(with config: AppConfig) {
         if isRunning {
             stop()
-            alertMessage = "机器人服务已停止"
-            showAlert = true
         } else {
             // 启动前先更新配置
             self.configManager.config = config
             
             // 校验 API Key
-            if config.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                alertMessage = "服务启动失败：请先在设置中填写 Ark API Key。"
+            if config.selectedProvider == .volcengine && config.volcengineApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                alertMessage = "服务启动失败：请先在设置中填写火山引擎 API Key。"
+                showAlert = true
+                return
+            } else if config.selectedProvider == .openai && config.openaiApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                alertMessage = "服务启动失败：请先在设置中填写 OpenAI API Key。"
                 showAlert = true
                 return
             }
+            // Ollama usually doesn't need an API Key, so we skip check or check Base URL reachability later
             
             start()
-            
-            if isRunning {
-                alertMessage = "机器人服务启动成功！"
-            } else {
-                // 如果 start() 内部失败（比如权限问题），alertMessage 会被 start() 更新，这里只需要补充默认情况
-                if alertMessage.isEmpty || alertMessage == "机器人服务已停止" {
-                    alertMessage = "服务启动失败：请确保已在“系统设置 -> 隐私与安全性 -> 完全磁盘访问权限”中添加并勾选了本应用。"
-                }
-            }
-            showAlert = true
         }
     }
     
     func start() {
         guard !isRunning else { return }
         
-        if sqlite3_open(dbPath, &db) != SQLITE_OK {
-            let errorMsg = "数据库打开失败，请确保已授予“完全磁盘访问权限”"
-            LogManager.shared.log(errorMsg, level: .error)
-            alertMessage = "服务启动失败：\(errorMsg)"
-            showAlert = true
-            isRunning = false
-            return
-        }
-        
-        // 成功打开数据库后，再设置运行状态
-        lastProcessedRowID = getLastRowID()
-        isRunning = true
-        LogManager.shared.log("iMessage 机器人服务已启动，唤醒词：'\(config.triggerPrefix)'", level: .success)
-        
-        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.poll()
+        Task {
+            do {
+                try await databaseService.open()
+                self.lastProcessedRowID = await databaseService.getLastRowID()
+                self.isRunning = true
+                
+                LogManager.shared.log("iMessage 机器人服务已启动，唤醒词：'\(self.config.triggerPrefix)'", level: .success)
+                self.alertMessage = "机器人服务启动成功！"
+                self.showAlert = true
+                
+                self.startPollingLoop()
+                
+            } catch {
+                let errorMsg = "数据库打开失败，请确保已授予“完全磁盘访问权限”"
+                LogManager.shared.log(errorMsg, level: .error)
+                self.alertMessage = "服务启动失败：\(errorMsg)"
+                self.showAlert = true
+                self.isRunning = false
+            }
         }
     }
     
     func stop() {
-        timer?.invalidate()
-        timer = nil
-        sqlite3_close(db)
-        db = nil
-        isRunning = false
-        LogManager.shared.log("服务已停止", level: .warning)
+        pollingTask?.cancel()
+        pollingTask = nil
+        self.isRunning = false
+        
+        Task {
+            await databaseService.close()
+            LogManager.shared.log("服务已停止", level: .warning)
+        }
+        
+        alertMessage = "机器人服务已停止"
+        showAlert = true
     }
     
-    private func getLastRowID() -> Int64 {
-        let query = "SELECT MAX(ROWID) FROM message"
-        var statement: OpaquePointer?
-        var rowID: Int64 = 0
-        
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            if sqlite3_step(statement) == SQLITE_ROW {
-                rowID = sqlite3_column_int64(statement, 0)
+    private func startPollingLoop() {
+        pollingTask?.cancel()
+        pollingTask = Task {
+            while !Task.isCancelled {
+                // 2秒轮询间隔
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                await self.poll()
             }
         }
-        sqlite3_finalize(statement)
-        return rowID
     }
     
-    private func poll() {
-        let query = """
-        SELECT message.ROWID, message.text, handle.id 
-        FROM message 
-        JOIN handle ON message.handle_id = handle.rowid 
-        ORDER BY message.date DESC 
-        LIMIT 1
-        """
+    private func poll() async {
+        guard let result = await databaseService.getLatestMessage() else { return }
         
-        var statement: OpaquePointer?
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            if sqlite3_step(statement) == SQLITE_ROW {
-                let rowID = sqlite3_column_int64(statement, 0)
-                
-                // 只有当 ID 变化时才处理
-                if rowID != lastProcessedRowID {
-                    let textPtr = sqlite3_column_text(statement, 1)
-                    let senderPtr = sqlite3_column_text(statement, 2)
-                    
-                    let text = textPtr != nil ? String(cString: textPtr!) : ""
-                    let sender = senderPtr != nil ? String(cString: senderPtr!) : ""
-                    
-                    lastProcessedRowID = rowID
-                    
-                    if !text.isEmpty && text.hasPrefix(config.triggerPrefix) {
-                        LogManager.shared.log("检测到指令: \(text) (来自: \(sender))")
-                        handleTrigger(text: text, sender: sender)
-                    }
-                }
+        // 只有当 ID 变化时才处理
+        if result.rowID != lastProcessedRowID {
+            let rowID = result.rowID
+            let text = result.text
+            let sender = result.sender
+            
+            lastProcessedRowID = rowID
+            
+            if !text.isEmpty && text.hasPrefix(config.triggerPrefix) {
+                LogManager.shared.log("检测到指令: \(text) (来自: \(sender))")
+                await handleTrigger(text: text, sender: sender)
             }
         }
-        sqlite3_finalize(statement)
     }
     
-    private func handleTrigger(text: String, sender: String) {
+    private func handleTrigger(text: String, sender: String) async {
+        // 使用 Task.detached 或直接在当前 Task 执行都可以，
+        // 但为了避免阻塞 polling loop 太久（虽然 loop 是串行的），
+        // 这里的处理包含 sleep，所以最好还是让它在单独的 Task 中跑，
+        // 不过 pollingTask 本身就是为了处理这个。
+        // 如果处理时间很长，会阻塞下一次 poll。
+        // 考虑到这里包含多次 sleep (模拟打字)，如果不希望阻塞轮询（比如检测新消息打断），
+        // 可以在当前 Task 中执行，但要注意 handleTrigger 内部的逻辑。
+        
+        // 原有逻辑是 Task { ... } 也就是 fire-and-forget，不阻塞 timer。
+        // 这里我们也应该用 Task 包装，以免阻塞 polling loop。
+        
         Task {
             do {
                 let cleanInput = text.replacingOccurrences(of: config.triggerPrefix, with: "").trimmingCharacters(in: .whitespaces)
@@ -144,7 +137,7 @@ class MessageEngine: ObservableObject {
                 LogManager.shared.log("回复将分 \(segments.count) 段发送")
                 
                 for segment in segments {
-                    // 发送前检查是否有新动态中断 (同步 Python 逻辑)
+                    // 发送前检查是否有新动态中断
                     if let latestID = await getLatestIDAsync(), latestID != lastProcessedRowID {
                         LogManager.shared.log("检测到新消息，中断当前回复流程", level: .warning)
                         return
@@ -153,10 +146,13 @@ class MessageEngine: ObservableObject {
                     sendIMessage(to: sender, text: segment)
                     LogManager.shared.log("已发送: \(segment)")
                     
-                    // 发送后立即更新 ID，防止循环触发 (同步 Python 逻辑)
-                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s wait for DB write
+                    // 发送后立即更新 ID，防止循环触发
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
                     if let sentID = await getLatestIDAsync() {
-                        lastProcessedRowID = sentID
+                        // 注意：这里更新 lastProcessedRowID 需要在 MainActor
+                        await MainActor.run {
+                            lastProcessedRowID = sentID
+                        }
                     }
                     
                     try? await Task.sleep(nanoseconds: UInt64(Double.random(in: 2.0...3.0) * 1_000_000_000))
@@ -164,11 +160,9 @@ class MessageEngine: ObservableObject {
                 
                 // Handle Emoji
                 if !emojiKeyword.isEmpty {
-                    // 随机决定是否发送表情包 (例如 30% 概率)
                     if Double.random(in: 0...1) < 0.3 {
                         LogManager.shared.log("正在准备表情包: \(emojiKeyword)...")
                         
-                        // 1. 获取 URL 前检查打断
                         if let latestID = await getLatestIDAsync(), latestID != lastProcessedRowID {
                             LogManager.shared.log("检测到新消息，取消发送表情包", level: .warning)
                             return
@@ -176,7 +170,6 @@ class MessageEngine: ObservableObject {
                         
                         if let url = await EmojiService.getEmojiURL(keyword: emojiKeyword, apiKey: config.emojiApiKey) {
                             
-                            // 2. 下载前检查打断
                             if let latestID = await getLatestIDAsync(), latestID != lastProcessedRowID {
                                 LogManager.shared.log("检测到新消息，取消下载表情包", level: .warning)
                                 return
@@ -184,7 +177,6 @@ class MessageEngine: ObservableObject {
                             
                             if let fileURL = await EmojiService.downloadEmoji(url: url) {
                                 
-                                // 3. 发送前检查打断
                                 if let latestID = await getLatestIDAsync(), latestID != lastProcessedRowID {
                                     LogManager.shared.log("检测到新消息，取消发送表情包文件", level: .warning)
                                     try? FileManager.default.removeItem(at: fileURL)
@@ -194,13 +186,13 @@ class MessageEngine: ObservableObject {
                                 LogManager.shared.log("表情包下载成功，正在发送...", level: .success)
                                 sendIMessageAttachment(to: sender, fileURL: fileURL)
                                 
-                                // 发送后更新 ID
                                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                                 if let sentID = await getLatestIDAsync() {
-                                    lastProcessedRowID = sentID
+                                    await MainActor.run {
+                                        lastProcessedRowID = sentID
+                                    }
                                 }
                                 
-                                // 延长等待时间，确保 iMessage 已读取并处理文件
                                 try? await Task.sleep(nanoseconds: 5_000_000_000)
                                 try? FileManager.default.removeItem(at: fileURL)
                             } else {
@@ -220,7 +212,7 @@ class MessageEngine: ObservableObject {
     }
 
     private func getLatestIDAsync() async -> Int64? {
-        return getLastRowID()
+        return await databaseService.getLastRowID()
     }
     
     private func splitText(_ text: String) -> [String] {
